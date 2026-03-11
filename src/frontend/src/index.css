@@ -1,0 +1,129 @@
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2")
+    format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: url("/assets/fonts/Outfit[wght].woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark cinematic theme - deep blacks, rich darks, crimson accent */
+    --background: 0.12 0.005 270;
+    --foreground: 0.96 0.005 80;
+
+    --card: 0.16 0.008 270;
+    --card-foreground: 0.95 0.005 80;
+
+    --popover: 0.14 0.006 270;
+    --popover-foreground: 0.95 0.005 80;
+
+    --primary: 0.54 0.22 25;
+    --primary-foreground: 0.98 0 0;
+
+    --secondary: 0.22 0.01 270;
+    --secondary-foreground: 0.9 0.005 80;
+
+    --muted: 0.2 0.008 270;
+    --muted-foreground: 0.58 0.01 270;
+
+    --accent: 0.54 0.22 25;
+    --accent-foreground: 0.98 0 0;
+
+    --destructive: 0.54 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.22 0.01 270;
+    --input: 0.2 0.01 270;
+    --ring: 0.54 0.22 25;
+
+    --radius: 0.5rem;
+
+    --chart-1: 0.54 0.22 25;
+    --chart-2: 0.65 0.15 200;
+    --chart-3: 0.7 0.18 145;
+    --chart-4: 0.72 0.15 320;
+    --chart-5: 0.68 0.16 60;
+
+    --sidebar: 0.13 0.006 270;
+    --sidebar-foreground: 0.9 0.005 80;
+    --sidebar-primary: 0.54 0.22 25;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.2 0.01 270;
+    --sidebar-accent-foreground: 0.9 0.005 80;
+    --sidebar-border: 0.22 0.01 270;
+    --sidebar-ring: 0.54 0.22 25;
+
+    /* Custom crimson tokens */
+    --crimson: 0.54 0.22 25;
+    --crimson-bright: 0.62 0.24 25;
+    --crimson-dark: 0.4 0.2 25;
+    --gold: 0.78 0.15 82;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    color-scheme: dark;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: oklch(0.14 0.006 270);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0.01 270);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.54 0.22 25);
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gradient-mask-r {
+    mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  }
+
+  .text-crimson {
+    color: oklch(var(--crimson));
+  }
+  .bg-crimson {
+    background-color: oklch(var(--crimson));
+  }
+  .border-crimson {
+    border-color: oklch(var(--crimson));
+  }
+  .text-gold {
+    color: oklch(var(--gold));
+  }
+}
