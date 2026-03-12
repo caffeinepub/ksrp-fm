@@ -102,6 +102,12 @@ actor {
     reviewedAt : ?Time.Time;
   };
 
+  // Payment Settings
+  public type PaymentSettings = {
+    upiId : Text;
+    qrCodeUrl : Text;
+  };
+
   module Video {
     public func compare(video1 : Video, video2 : Video) : Order.Order {
       Nat.compare(video1.id, video2.id);
@@ -135,6 +141,10 @@ actor {
 
   var nextVideoId = 1;
   var nextPremiumRequestId = 1;
+
+  // Payment Settings
+  var paymentUpiId : Text = "ksrpfm@upi";
+  var paymentQrCodeUrl : Text = "";
 
   ///////////////////////////////////////////////////////////
   // VIDEO INIT (Hardcoded for demonstration)
@@ -519,5 +529,22 @@ actor {
 
   public query ({ caller }) func isAdmin() : async Bool {
     AccessControl.isAdmin(accessControlState, caller);
+  };
+
+  ///////////////////////////////////////////////////////////
+  // PAYMENT SETTINGS APIS
+  ///////////////////////////////////////////////////////////
+
+  public query func getPaymentSettings() : async PaymentSettings {
+    { upiId = paymentUpiId; qrCodeUrl = paymentQrCodeUrl };
+  };
+
+  public shared ({ caller }) func updatePaymentSettings(upiId : Text, qrCodeUrl : Text) : async Bool {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update payment settings");
+    };
+    paymentUpiId := upiId;
+    paymentQrCodeUrl := qrCodeUrl;
+    true;
   };
 };

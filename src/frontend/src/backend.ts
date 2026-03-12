@@ -151,6 +151,10 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+export interface PaymentSettings {
+    upiId: string;
+    qrCodeUrl: string;
+}
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -174,6 +178,8 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitPremiumRequest(plan: PremiumPlan, utrId: string): Promise<bigint>;
     verifyPremiumRequest(requestId: bigint, approve: boolean): Promise<boolean>;
+    getPaymentSettings(): Promise<PaymentSettings>;
+    updatePaymentSettings(upiId: string, qrCodeUrl: string): Promise<boolean>;
 }
 import type { Genre as _Genre, Hash as _Hash, PremiumPlan as _PremiumPlan, PremiumRequest as _PremiumRequest, PremiumRequestStatus as _PremiumRequestStatus, Time as _Time, User as _User, UserProfile as _UserProfile, UserRole as _UserRole, Video as _Video, WatchProgress as _WatchProgress } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -491,6 +497,14 @@ export class Backend implements backendInterface {
             const result = await this.actor.verifyPremiumRequest(arg0, arg1);
             return result;
         }
+    }
+    async getPaymentSettings(): Promise<PaymentSettings> {
+        const result = await (this.actor as any).getPaymentSettings();
+        return { upiId: result.upiId, qrCodeUrl: result.qrCodeUrl };
+    }
+    async updatePaymentSettings(arg0: string, arg1: string): Promise<boolean> {
+        const result = await (this.actor as any).updatePaymentSettings(arg0, arg1);
+        return result;
     }
 }
 function from_candid_Genre_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Genre): Genre {

@@ -8,13 +8,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Check, Crown, Loader2, Sparkles, X } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  Crown,
+  Loader2,
+  QrCode,
+  Sparkles,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PremiumPlan } from "../backend.d";
 import { useAuth } from "../context/AuthContext";
-import { useSubmitPremiumRequest } from "../hooks/useQueries";
+import {
+  usePaymentSettings,
+  useSubmitPremiumRequest,
+} from "../hooks/useQueries";
 
 const BENEFITS = [
   "No advertisements",
@@ -27,9 +37,14 @@ const BENEFITS = [
 export default function PremiumPage() {
   const { isPremium, premiumExpiresAt, refreshAuth } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [utrId, setUtrId] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { mutateAsync: submitRequest, isPending } = useSubmitPremiumRequest();
+  const { data: paymentSettings } = usePaymentSettings();
+
+  const upiId = paymentSettings?.upiId || "ksrpfm@upi";
+  const qrCodeUrl = paymentSettings?.qrCodeUrl || "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +56,12 @@ export default function PremiumPage() {
     } catch {
       toast.error("Failed to submit payment request. Please try again.");
     }
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setUtrId("");
+    setSubmitted(false);
   };
 
   const premiumExpiry = premiumExpiresAt
@@ -204,40 +225,37 @@ export default function PremiumPage() {
           </motion.div>
         </div>
 
-        {/* CTA */}
-        {selectedPlan && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center"
+        {/* CTA — always visible, disabled until a plan is selected */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-2"
+        >
+          {!selectedPlan && (
+            <p className="text-sm text-muted-foreground">
+              Select a plan above to continue
+            </p>
+          )}
+          <Button
+            size="lg"
+            disabled={!selectedPlan}
+            className="bg-crimson hover:bg-crimson/90 text-white px-12 shadow-crimson font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => selectedPlan && setDialogOpen(true)}
+            data-ocid="premium.submit_button"
           >
-            <Button
-              size="lg"
-              className="bg-crimson hover:bg-crimson/90 text-white px-12 shadow-crimson font-semibold"
-              onClick={() => {}}
-              data-ocid="premium.submit_button"
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              Proceed to Payment
-            </Button>
-          </motion.div>
-        )}
+            <Crown className="w-4 h-4 mr-2" />
+            Proceed to Payment
+          </Button>
+        </motion.div>
 
         {/* Payment Dialog */}
         <Dialog
-          open={!!selectedPlan}
+          open={dialogOpen}
           onOpenChange={(open) => {
-            if (!open) {
-              setSelectedPlan(null);
-              setUtrId("");
-              setSubmitted(false);
-            }
+            if (!open) handleCloseDialog();
           }}
         >
-          <DialogContent
-            className="max-w-md"
-            data-ocid="premium.payment_dialog"
-          >
+          <DialogContent className="max-w-md" data-ocid="premium.dialog">
             <DialogHeader>
               <DialogTitle className="font-display font-bold text-xl">
                 {submitted ? "Payment Submitted!" : "Complete Payment"}
@@ -262,11 +280,8 @@ export default function PremiumPage() {
                 </p>
                 <Button
                   className="mt-6 bg-crimson hover:bg-crimson/90 text-white"
-                  onClick={() => {
-                    setSelectedPlan(null);
-                    setUtrId("");
-                    setSubmitted(false);
-                  }}
+                  onClick={handleCloseDialog}
+                  data-ocid="premium.close_button"
                 >
                   Done
                 </Button>
@@ -280,13 +295,28 @@ export default function PremiumPage() {
                     via UPI
                   </p>
                   <div className="flex justify-center">
-                    <img
-                      src="/assets/generated/payment-qr.dim_300x300.png"
-                      alt="UPI QR Code"
-                      className="w-52 h-52 rounded-lg border border-border"
-                    />
+                    <div className="w-52 h-52 rounded-lg border border-border bg-white flex flex-col items-center justify-center gap-2 overflow-hidden">
+                      {qrCodeUrl ? (
+                        <img
+                          src={qrCodeUrl}
+                          alt="UPI QR Code"
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <>
+                          <QrCode className="w-24 h-24 text-gray-700" />
+                          <p className="text-xs text-gray-500">UPI QR Code</p>
+                          <p className="text-xs text-gray-400">
+                            (Set in Admin Panel)
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
+                  <p className="text-sm font-mono mt-3 text-foreground">
+                    {upiId}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
                     Scan to pay via UPI. After payment, enter your
                     UTR/Transaction ID below.
                   </p>
@@ -310,12 +340,12 @@ export default function PremiumPage() {
                     type="submit"
                     disabled={isPending || !utrId.trim()}
                     className="w-full bg-crimson hover:bg-crimson/90 text-white"
-                    data-ocid="premium.submit_button"
+                    data-ocid="premium.confirm_button"
                   >
                     {isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : null}
-                    {isPending ? "Submitting..." : "Submit Payment"}
+                    {isPending ? "Verifying..." : "Verify & Activate"}
                   </Button>
                 </form>
               </div>

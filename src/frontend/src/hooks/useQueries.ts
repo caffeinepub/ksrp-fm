@@ -124,3 +124,32 @@ export function useVerifyPremiumRequest() {
     },
   });
 }
+
+export function usePaymentSettings() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["paymentSettings"],
+    queryFn: async () => {
+      if (!actor) return { upiId: "", qrCodeUrl: "" };
+      return actor.getPaymentSettings();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useUpdatePaymentSettings() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      upiId,
+      qrCodeUrl,
+    }: { upiId: string; qrCodeUrl: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updatePaymentSettings(upiId, qrCodeUrl);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["paymentSettings"] });
+    },
+  });
+}

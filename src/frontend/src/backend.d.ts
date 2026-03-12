@@ -50,6 +50,10 @@ export interface UserProfile {
     lastName: string;
     firstName: string;
 }
+export interface PaymentSettings {
+    upiId: string;
+    qrCodeUrl: string;
+}
 export enum Genre {
     Action = "Action",
     Romance = "Romance",
@@ -70,6 +74,7 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
@@ -91,4 +96,6 @@ export interface backendInterface {
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     submitPremiumRequest(plan: PremiumPlan, utrId: string): Promise<bigint>;
     verifyPremiumRequest(requestId: bigint, approve: boolean): Promise<boolean>;
+    getPaymentSettings(): Promise<PaymentSettings>;
+    updatePaymentSettings(upiId: string, qrCodeUrl: string): Promise<boolean>;
 }
