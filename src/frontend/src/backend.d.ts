@@ -81,6 +81,13 @@ export enum UserRole {
     user = "user",
     guest = "guest"
 }
+export interface HelpDeskRequest {
+    id: bigint;
+    name: string;
+    phoneNumber: string;
+    problem: string;
+    submittedAt: Time;
+}
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -111,4 +118,6 @@ export interface backendInterface {
     getAllUserProfiles(): Promise<Array<UserRecord>>;
     addVideo(title: string, description: string, videoUrl: string, thumbnailUrl: string, genre: Genre, durationSeconds: bigint, isPremiumOnly: boolean): Promise<bigint>;
     deleteVideo(videoId: bigint): Promise<boolean>;
+    submitHelpDeskRequest(name: string, phoneNumber: string, problem: string): Promise<bigint>;
+    listHelpDeskRequests(): Promise<Array<HelpDeskRequest>>;
 }

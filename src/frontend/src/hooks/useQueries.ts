@@ -217,3 +217,29 @@ export function useDeleteVideo() {
     },
   });
 }
+
+export function useSubmitHelpDeskRequest() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      phoneNumber,
+      problem,
+    }: { name: string; phoneNumber: string; problem: string }) => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).submitHelpDeskRequest(name, phoneNumber, problem);
+    },
+  });
+}
+
+export function useListHelpDeskRequests() {
+  const { actor } = useActor();
+  return useQuery({
+    queryKey: ["helpdesk"],
+    queryFn: async () => {
+      if (!actor) throw new Error("Not connected");
+      return (actor as any).listHelpDeskRequests();
+    },
+    enabled: !!actor,
+  });
+}

@@ -102,6 +102,14 @@ actor {
     reviewedAt : ?Time.Time;
   };
 
+  public type HelpDeskRequest = {
+    id : Nat;
+    name : Text;
+    phoneNumber : Text;
+    problem : Text;
+    submittedAt : Time.Time;
+  };
+
   public type PaymentSettings = {
     upiId : Text;
     qrCodeUrl : Text;
@@ -141,6 +149,9 @@ actor {
 
   var paymentUpiId : Text = "ksrpfm@upi";
   var paymentQrCodeUrl : Text = "";
+
+  let helpDeskRequests = Map.empty<Nat, HelpDeskRequest>();
+  var nextHelpDeskId = 1;
 
   let sampleVideos = [
     { title = "Sunset Love"; description = "A romantic tale set against the backdrop of a beautiful sunset."; thumbnailUrl = "https://example.com/thumbnails/sunset_love.jpg"; videoUrl = "https://example.com/videos/sunset_love.mp4"; genre = #Romance : Genre; durationSeconds = 5400; },
@@ -562,4 +573,28 @@ actor {
       };
     });
   };
+
+  // Anyone can submit a help desk request
+  public shared func submitHelpDeskRequest(name : Text, phoneNumber : Text, problem : Text) : async Nat {
+    let req : HelpDeskRequest = {
+      id = nextHelpDeskId;
+      name = name;
+      phoneNumber = phoneNumber;
+      problem = problem;
+      submittedAt = Time.now();
+    };
+    helpDeskRequests.add(nextHelpDeskId, req);
+    let newId = nextHelpDeskId;
+    nextHelpDeskId += 1;
+    newId;
+  };
+
+  // Admin: list all help desk requests
+  public query ({ caller }) func listHelpDeskRequests() : async [HelpDeskRequest] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view help desk requests");
+    };
+    helpDeskRequests.values().toArray();
+  };
+
 };

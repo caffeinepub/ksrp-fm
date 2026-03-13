@@ -14,11 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Crown,
   Film,
-  LogOut,
+  HelpCircle,
   Menu,
   Phone,
   Shield,
@@ -27,8 +29,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { Genre } from "../backend.d";
+import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { useSubmitHelpDeskRequest } from "../hooks/useQueries";
 
 export default function Navbar() {
   const {
@@ -36,12 +39,10 @@ export default function Navbar() {
     userProfile,
     isPremium,
     isAdmin,
-    logout,
     isLoading,
     refreshAuth,
   } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminCode, setAdminCode] = useState("");
@@ -49,11 +50,14 @@ export default function Navbar() {
   const [adminCodeLoading, setAdminCodeLoading] = useState(false);
   const [adminSuccess, setAdminSuccess] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [helpDeskOpen, setHelpDeskOpen] = useState(false);
+  const [hdName, setHdName] = useState("");
+  const [hdPhone, setHdPhone] = useState("");
+  const [hdProblem, setHdProblem] = useState("");
+  const [hdSuccess, setHdSuccess] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate({ to: "/auth" });
-  };
+  const { mutateAsync: submitHelpDesk, isPending: isSubmittingHd } =
+    useSubmitHelpDeskRequest();
 
   const handleAdminPowerMode = () => {
     setAdminCode("");
@@ -84,20 +88,28 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = [
-    { label: "Home", to: "/", ocid: "nav.home_link" },
-    {
-      label: "Romance",
-      to: `/browse/${Genre.Romance}`,
-      ocid: "nav.browse_link",
-    },
-    {
-      label: "Thriller",
-      to: `/browse/${Genre.Thriller}`,
-      ocid: "nav.browse_link",
-    },
-    { label: "Action", to: `/browse/${Genre.Action}`, ocid: "nav.browse_link" },
-  ];
+  const openHelpDesk = () => {
+    setHdName("");
+    setHdPhone("");
+    setHdProblem("");
+    setHdSuccess(false);
+    setHelpDeskOpen(true);
+  };
+
+  const handleHelpDeskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await submitHelpDesk({
+        name: hdName.trim(),
+        phoneNumber: hdPhone.trim(),
+        problem: hdProblem.trim(),
+      });
+      setHdSuccess(true);
+      toast.success("Help request submitted! We'll get back to you soon.");
+    } catch {
+      toast.error("Failed to submit request. Please try again.");
+    }
+  };
 
   return (
     <>
@@ -114,21 +126,7 @@ export default function Navbar() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                data-ocid={link.ocid}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  location.pathname === link.to
-                    ? "text-crimson bg-crimson/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-            {/* Admin Power Mode - always visible */}
+            {/* Admin Power Mode - always visible for non-admins */}
             {!isAdmin && (
               <button
                 type="button"
@@ -140,21 +138,26 @@ export default function Navbar() {
                 Admin Power Mode
               </button>
             )}
-            {/* Admin Panel link for existing admins */}
             {isAdmin && (
               <Link
                 to="/admin"
                 data-ocid="nav.admin_link"
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  location.pathname === "/admin"
-                    ? "text-crimson bg-crimson/10"
-                    : "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
-                }`}
+                className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10 flex items-center gap-1.5"
               >
                 <Shield className="w-3.5 h-3.5" />
                 Admin Panel
               </Link>
             )}
+            {/* Help Desk button */}
+            <button
+              type="button"
+              data-ocid="helpdesk.open_modal_button"
+              onClick={openHelpDesk}
+              className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              Help Desk
+            </button>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -184,7 +187,7 @@ export default function Navbar() {
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem
                       className="gap-2 text-muted-foreground text-xs"
                       disabled
@@ -221,12 +224,12 @@ export default function Navbar() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
-                      className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                      onClick={handleLogout}
-                      data-ocid="nav.logout_button"
+                      className="gap-2 cursor-pointer"
+                      onClick={openHelpDesk}
+                      data-ocid="helpdesk.dropdown_open_button"
                     >
-                      <LogOut className="w-3 h-3" />
-                      Logout
+                      <HelpCircle className="w-3 h-3 text-crimson" />
+                      Help Desk
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -266,20 +269,6 @@ export default function Navbar() {
               className="md:hidden overflow-hidden border-t border-border"
             >
               <nav className="flex flex-col px-4 py-3 gap-1">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    onClick={() => setMobileOpen(false)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      location.pathname === link.to
-                        ? "text-crimson bg-crimson/10"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
                 {isLoggedIn && (
                   <>
                     <Link
@@ -329,6 +318,18 @@ export default function Navbar() {
                     Admin Panel
                   </Link>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    openHelpDesk();
+                  }}
+                  className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground text-left flex items-center gap-1.5"
+                  data-ocid="nav.mobile_helpdesk_button"
+                >
+                  <HelpCircle className="w-3 h-3" />
+                  Help Desk
+                </button>
                 {!isLoading && !isLoggedIn && (
                   <Link
                     to="/auth"
@@ -467,6 +468,106 @@ export default function Navbar() {
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Help Desk Dialog */}
+      <Dialog open={helpDeskOpen} onOpenChange={setHelpDeskOpen}>
+        <DialogContent className="sm:max-w-md" data-ocid="helpdesk.dialog">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-crimson" />
+              Help Desk
+            </DialogTitle>
+            <DialogDescription>
+              Fill in your details and describe your problem. Our team will get
+              back to you soon.
+            </DialogDescription>
+          </DialogHeader>
+          {hdSuccess ? (
+            <div
+              className="flex flex-col items-center gap-3 py-6 text-center"
+              data-ocid="helpdesk.success_state"
+            >
+              <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
+                <HelpCircle className="w-7 h-7 text-green-400" />
+              </div>
+              <p className="font-medium text-foreground">Request Submitted!</p>
+              <p className="text-sm text-muted-foreground">
+                We've received your request and will get back to you shortly.
+              </p>
+              <Button
+                className="bg-crimson hover:bg-crimson/90 text-white mt-2"
+                onClick={() => setHelpDeskOpen(false)}
+                data-ocid="helpdesk.close_button"
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleHelpDeskSubmit}
+              className="flex flex-col gap-4 pt-2"
+            >
+              <div className="space-y-1.5">
+                <Label className="text-sm text-muted-foreground">Name *</Label>
+                <Input
+                  placeholder="Your full name"
+                  value={hdName}
+                  onChange={(e) => setHdName(e.target.value)}
+                  required
+                  data-ocid="helpdesk.name_input"
+                  className="bg-secondary border-border focus:border-crimson"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm text-muted-foreground">
+                  Phone Number *
+                </Label>
+                <Input
+                  placeholder="Your phone number"
+                  value={hdPhone}
+                  onChange={(e) => setHdPhone(e.target.value)}
+                  required
+                  data-ocid="helpdesk.phone_input"
+                  className="bg-secondary border-border focus:border-crimson"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm text-muted-foreground">
+                  Problem *
+                </Label>
+                <Textarea
+                  placeholder="Describe your problem in detail..."
+                  value={hdProblem}
+                  onChange={(e) => setHdProblem(e.target.value)}
+                  required
+                  rows={4}
+                  data-ocid="helpdesk.problem_textarea"
+                  className="bg-secondary border-border focus:border-crimson resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setHelpDeskOpen(false)}
+                  data-ocid="helpdesk.close_button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmittingHd}
+                  className="flex-1 bg-crimson hover:bg-crimson/90 text-white"
+                  data-ocid="helpdesk.submit_button"
+                >
+                  {isSubmittingHd ? "Submitting..." : "Submit Request"}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </>

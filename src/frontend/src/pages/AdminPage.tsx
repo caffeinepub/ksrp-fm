@@ -23,6 +23,7 @@ import {
   Clock,
   CreditCard,
   Film,
+  HelpCircle,
   Loader2,
   Plus,
   QrCode,
@@ -42,6 +43,7 @@ import {
   useAllUserProfiles,
   useDeleteVideo,
   useListAllVideos,
+  useListHelpDeskRequests,
   usePaymentSettings,
   usePendingPremiumRequests,
   useUpdatePaymentSettings,
@@ -61,6 +63,8 @@ export default function AdminPage() {
   const { mutateAsync: addVideo, isPending: isAddingVideo } = useAddVideo();
   const { mutateAsync: deleteVideo, isPending: isDeletingVideo } =
     useDeleteVideo();
+  const { data: helpDeskRequests, isLoading: isLoadingHelpDesk } =
+    useListHelpDeskRequests();
 
   const [upiId, setUpiId] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -199,6 +203,14 @@ export default function AdminPage() {
               Videos
             </TabsTrigger>
             <TabsTrigger
+              value="helpdesk"
+              className="data-[state=active]:bg-crimson data-[state=active]:text-white"
+              data-ocid="admin.helpdesk_tab"
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Help Desk
+            </TabsTrigger>
+            <TabsTrigger
               value="settings"
               className="data-[state=active]:bg-crimson data-[state=active]:text-white"
               data-ocid="admin.settings_tab"
@@ -320,24 +332,28 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <Table>
+                <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {requests.length} pending request
+                    {requests.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <Table data-ocid="admin.requests_table">
                   <TableHeader>
                     <TableRow className="border-border">
                       <TableHead className="text-muted-foreground">#</TableHead>
                       <TableHead className="text-muted-foreground">
-                        User ID
+                        User
                       </TableHead>
                       <TableHead className="text-muted-foreground">
                         Plan
                       </TableHead>
                       <TableHead className="text-muted-foreground">
-                        UTR ID
+                        UTR / Txn ID
                       </TableHead>
                       <TableHead className="text-muted-foreground">
                         Submitted
-                      </TableHead>
-                      <TableHead className="text-muted-foreground">
-                        Status
                       </TableHead>
                       <TableHead className="text-muted-foreground">
                         Actions
@@ -349,23 +365,25 @@ export default function AdminPage() {
                       <TableRow
                         key={req.id.toString()}
                         className="border-border"
-                        data-ocid={`admin.request_row.${i + 1}`}
+                        data-ocid={`admin.requests_row.${i + 1}`}
                       >
                         <TableCell className="text-muted-foreground text-sm">
                           {i + 1}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground max-w-24 truncate">
-                          {req.userId.toString().slice(0, 10)}...
+                        <TableCell className="font-mono text-xs">
+                          {req.userId.toString().slice(0, 12)}...
                         </TableCell>
                         <TableCell>
                           <Badge
                             className={`text-xs ${
                               req.plan === PremiumPlan.Yearly
-                                ? "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
-                                : "bg-crimson/20 text-crimson border-crimson/30"
-                            } border`}
+                                ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                                : "bg-crimson/10 text-crimson border border-crimson/30"
+                            }`}
                           >
-                            {req.plan}
+                            {req.plan === PremiumPlan.Yearly
+                              ? "Yearly"
+                              : "Monthly"}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
@@ -377,18 +395,13 @@ export default function AdminPage() {
                           ).toLocaleDateString("en-IN")}
                         </TableCell>
                         <TableCell>
-                          <Badge className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs">
-                            {req.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1.5">
                             <Button
                               size="sm"
                               variant="outline"
                               disabled={isPending}
                               onClick={() => handleVerify(req.id, true)}
-                              className="border-green-500/40 text-green-400 hover:bg-green-500/10 hover:text-green-300 h-7 px-2 text-xs gap-1"
+                              className="border-green-500/40 text-green-400 hover:bg-green-500/10 h-7 px-2 text-xs gap-1"
                               data-ocid={`admin.approve_button.${i + 1}`}
                             >
                               <CheckCircle className="w-3 h-3" /> Approve
@@ -584,7 +597,7 @@ export default function AdminPage() {
                     {allVideos.map((video, i) => (
                       <div
                         key={video.id.toString()}
-                        className="bg-card border border-border rounded-lg p-3 flex items-start gap-3"
+                        className="flex items-center gap-3 bg-card border border-border rounded-lg p-3"
                         data-ocid={`admin.video_item.${i + 1}`}
                       >
                         {video.thumbnailUrl ? (
@@ -633,6 +646,89 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* HELP DESK TAB */}
+          <TabsContent value="helpdesk">
+            {isLoadingHelpDesk ? (
+              <div
+                className="flex items-center justify-center py-20"
+                data-ocid="admin.helpdesk_loading_state"
+              >
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !helpDeskRequests || helpDeskRequests.length === 0 ? (
+              <div
+                className="text-center py-20"
+                data-ocid="admin.helpdesk_empty_state"
+              >
+                <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <h3 className="font-display font-semibold text-lg mb-1">
+                  No Help Desk Requests
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  No help desk requests yet.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {helpDeskRequests.length} request
+                    {helpDeskRequests.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <Table data-ocid="admin.helpdesk_table">
+                  <TableHeader>
+                    <TableRow className="border-border">
+                      <TableHead className="text-muted-foreground">#</TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Name
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Phone Number
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Problem
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Submitted
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {helpDeskRequests.map((req, i) => (
+                      <TableRow
+                        key={req.id.toString()}
+                        className="border-border"
+                        data-ocid={`admin.helpdesk_row.${i + 1}`}
+                      >
+                        <TableCell className="text-muted-foreground text-sm">
+                          {i + 1}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {req.name}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {req.phoneNumber}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-xs">
+                          <p className="line-clamp-2 text-muted-foreground">
+                            {req.problem}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {new Date(
+                            Number(req.submittedAt) / 1_000_000,
+                          ).toLocaleDateString("en-IN")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </TabsContent>
 
           {/* PAYMENT SETTINGS TAB */}
