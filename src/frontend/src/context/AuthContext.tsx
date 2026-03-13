@@ -36,21 +36,26 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { actor, isFetching } = useActor();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Initialise synchronously from localStorage so UI never shows Sign In to a logged-in user
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    () => localStorage.getItem("ksrp_logged_in") === "true",
+  );
   const [isPremium, setIsPremium] = useState(false);
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<bigint | null>(null);
   const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(
+    () => localStorage.getItem("ksrp_admin") === "true",
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAuthState = useCallback(async () => {
     if (!actor) return;
-    // Always check local admin flag first, regardless of login status
     const localAdmin = localStorage.getItem("ksrp_admin") === "true";
     const loggedIn = localStorage.getItem("ksrp_logged_in") === "true";
 
     if (!loggedIn) {
+      setIsLoggedIn(false);
       setIsAdmin(localAdmin);
       setIsLoading(false);
       return;
