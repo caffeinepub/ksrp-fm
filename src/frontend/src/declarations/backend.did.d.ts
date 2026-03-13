@@ -44,6 +44,14 @@ export interface UserProfile {
   'lastName' : string,
   'firstName' : string,
 }
+export interface UserRecord {
+  'principal' : Principal,
+  'firstName' : string,
+  'lastName' : string,
+  'mobileNumber' : string,
+  'isPremium' : boolean,
+  'premiumExpiresAt' : [] | [Time],
+}
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
@@ -64,6 +72,17 @@ export interface WatchProgress {
   'watchedSeconds' : bigint,
   'videoId' : bigint,
 }
+export interface HelpDeskRequest {
+  'id' : bigint,
+  'name' : string,
+  'phoneNumber' : string,
+  'problem' : string,
+  'submittedAt' : Time,
+}
+export interface PaymentSettings {
+  'upiId' : string,
+  'qrCodeUrl' : string,
+}
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -74,6 +93,7 @@ export interface _SERVICE {
   'getPremiumRequests' : ActorMethod<[], Array<PremiumRequest>>,
   'getUser' : ActorMethod<[string], [] | [User]>,
   'getUserPremiumStatus' : ActorMethod<[], [boolean, [] | [Time]]>,
+  'getUserPremiumPlan' : ActorMethod<[], [] | [string]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getVideoById' : ActorMethod<[bigint], [] | [Video]>,
   'getWatchProgress' : ActorMethod<[bigint], [] | [WatchProgress]>,
@@ -87,6 +107,14 @@ export interface _SERVICE {
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'submitPremiumRequest' : ActorMethod<[PremiumPlan, string], bigint>,
   'verifyPremiumRequest' : ActorMethod<[bigint, boolean], boolean>,
+  'getPaymentSettings' : ActorMethod<[], PaymentSettings>,
+  'updatePaymentSettings' : ActorMethod<[string, string], boolean>,
+  'activateAdminWithCode' : ActorMethod<[string], boolean>,
+  'getAllUserProfiles' : ActorMethod<[], Array<UserRecord>>,
+  'addVideo' : ActorMethod<[string, string, string, string, Genre, bigint, boolean], bigint>,
+  'deleteVideo' : ActorMethod<[bigint], boolean>,
+  'submitHelpDeskRequest' : ActorMethod<[string, string, string], bigint>,
+  'listHelpDeskRequests' : ActorMethod<[], Array<HelpDeskRequest>>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -163,6 +163,13 @@ export interface UserRecord {
     isPremium: boolean;
     premiumExpiresAt?: Time;
 }
+export interface HelpDeskRequest {
+    id: bigint;
+    name: string;
+    phoneNumber: string;
+    problem: string;
+    submittedAt: Time;
+}
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -193,6 +200,8 @@ export interface backendInterface {
     getAllUserProfiles(): Promise<Array<UserRecord>>;
     addVideo(title: string, description: string, videoUrl: string, thumbnailUrl: string, genre: Genre, durationSeconds: bigint, isPremiumOnly: boolean): Promise<bigint>;
     deleteVideo(videoId: bigint): Promise<boolean>;
+    submitHelpDeskRequest(name: string, phoneNumber: string, problem: string): Promise<bigint>;
+    listHelpDeskRequests(): Promise<Array<HelpDeskRequest>>;
 }
 import type { Genre as _Genre, Hash as _Hash, PremiumPlan as _PremiumPlan, PremiumRequest as _PremiumRequest, PremiumRequestStatus as _PremiumRequestStatus, Time as _Time, User as _User, UserProfile as _UserProfile, UserRole as _UserRole, Video as _Video, WatchProgress as _WatchProgress } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -548,6 +557,20 @@ export class Backend implements backendInterface {
             mobileNumber: r.mobileNumber,
             isPremium: r.isPremium,
             premiumExpiresAt: r.premiumExpiresAt?.length ? r.premiumExpiresAt[0] : undefined,
+        }));
+    }
+    async submitHelpDeskRequest(name: string, phoneNumber: string, problem: string): Promise<bigint> {
+        const result = await (this.actor as any).submitHelpDeskRequest(name, phoneNumber, problem);
+        return BigInt(result);
+    }
+    async listHelpDeskRequests(): Promise<Array<HelpDeskRequest>> {
+        const result = await (this.actor as any).listHelpDeskRequests();
+        return result.map((r: any) => ({
+            id: BigInt(r.id),
+            name: r.name,
+            phoneNumber: r.phoneNumber,
+            problem: r.problem,
+            submittedAt: BigInt(r.submittedAt),
         }));
     }
 }

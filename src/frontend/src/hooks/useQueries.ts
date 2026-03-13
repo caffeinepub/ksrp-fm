@@ -227,7 +227,7 @@ export function useSubmitHelpDeskRequest() {
       problem,
     }: { name: string; phoneNumber: string; problem: string }) => {
       if (!actor) throw new Error("Not connected");
-      return (actor as any).submitHelpDeskRequest(name, phoneNumber, problem);
+      return actor.submitHelpDeskRequest(name, phoneNumber, problem);
     },
   });
 }
@@ -238,7 +238,7 @@ export function useListHelpDeskRequests() {
     queryKey: ["helpdesk"],
     queryFn: async () => {
       if (!actor) throw new Error("Not connected");
-      return (actor as any).listHelpDeskRequests();
+      return actor.listHelpDeskRequests();
     },
     enabled: !!actor,
   });

@@ -70,6 +70,25 @@ export const Video = IDL.Record({
   'durationSeconds' : IDL.Nat,
   'videoUrl' : IDL.Text,
 });
+export const UserRecord = IDL.Record({
+  'principal' : IDL.Principal,
+  'firstName' : IDL.Text,
+  'lastName' : IDL.Text,
+  'mobileNumber' : IDL.Text,
+  'isPremium' : IDL.Bool,
+  'premiumExpiresAt' : IDL.Opt(Time),
+});
+export const PaymentSettings = IDL.Record({
+  'upiId' : IDL.Text,
+  'qrCodeUrl' : IDL.Text,
+});
+export const HelpDeskRequest = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'phoneNumber' : IDL.Text,
+  'problem' : IDL.Text,
+  'submittedAt' : Time,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
@@ -77,19 +96,12 @@ export const idlService = IDL.Service({
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getContinueWatching' : IDL.Func([], [IDL.Vec(WatchProgress)], ['query']),
-  'getPendingPremiumRequests' : IDL.Func(
-      [],
-      [IDL.Vec(PremiumRequest)],
-      ['query'],
-    ),
+  'getPendingPremiumRequests' : IDL.Func([], [IDL.Vec(PremiumRequest)], ['query']),
   'getPremiumRequests' : IDL.Func([], [IDL.Vec(PremiumRequest)], ['query']),
   'getUser' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
   'getUserPremiumStatus' : IDL.Func([], [IDL.Bool, IDL.Opt(Time)], ['query']),
-  'getUserProfile' : IDL.Func(
-      [IDL.Principal],
-      [IDL.Opt(UserProfile)],
-      ['query'],
-    ),
+  'getUserPremiumPlan' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+  'getUserProfile' : IDL.Func([IDL.Principal], [IDL.Opt(UserProfile)], ['query']),
   'getVideoById' : IDL.Func([IDL.Nat], [IDL.Opt(Video)], ['query']),
   'getWatchProgress' : IDL.Func([IDL.Nat], [IDL.Opt(WatchProgress)], ['query']),
   'isAdmin' : IDL.Func([], [IDL.Bool], ['query']),
@@ -102,6 +114,14 @@ export const idlService = IDL.Service({
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'submitPremiumRequest' : IDL.Func([PremiumPlan, IDL.Text], [IDL.Nat], []),
   'verifyPremiumRequest' : IDL.Func([IDL.Nat, IDL.Bool], [IDL.Bool], []),
+  'getPaymentSettings' : IDL.Func([], [PaymentSettings], ['query']),
+  'updatePaymentSettings' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'activateAdminWithCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserRecord)], ['query']),
+  'addVideo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text, Genre, IDL.Nat, IDL.Bool], [IDL.Nat], []),
+  'deleteVideo' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'submitHelpDeskRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+  'listHelpDeskRequests' : IDL.Func([], [IDL.Vec(HelpDeskRequest)], ['query']),
 });
 
 export const idlInitArgs = [];
@@ -169,32 +189,40 @@ export const idlFactory = ({ IDL }) => {
     'durationSeconds' : IDL.Nat,
     'videoUrl' : IDL.Text,
   });
-  
+  const UserRecord = IDL.Record({
+    'principal' : IDL.Principal,
+    'firstName' : IDL.Text,
+    'lastName' : IDL.Text,
+    'mobileNumber' : IDL.Text,
+    'isPremium' : IDL.Bool,
+    'premiumExpiresAt' : IDL.Opt(Time),
+  });
+  const PaymentSettings = IDL.Record({
+    'upiId' : IDL.Text,
+    'qrCodeUrl' : IDL.Text,
+  });
+  const HelpDeskRequest = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'phoneNumber' : IDL.Text,
+    'problem' : IDL.Text,
+    'submittedAt' : Time,
+  });
+
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getContinueWatching' : IDL.Func([], [IDL.Vec(WatchProgress)], ['query']),
-    'getPendingPremiumRequests' : IDL.Func(
-        [],
-        [IDL.Vec(PremiumRequest)],
-        ['query'],
-      ),
+    'getPendingPremiumRequests' : IDL.Func([], [IDL.Vec(PremiumRequest)], ['query']),
     'getPremiumRequests' : IDL.Func([], [IDL.Vec(PremiumRequest)], ['query']),
     'getUser' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
     'getUserPremiumStatus' : IDL.Func([], [IDL.Bool, IDL.Opt(Time)], ['query']),
-    'getUserProfile' : IDL.Func(
-        [IDL.Principal],
-        [IDL.Opt(UserProfile)],
-        ['query'],
-      ),
+    'getUserPremiumPlan' : IDL.Func([], [IDL.Opt(IDL.Text)], ['query']),
+    'getUserProfile' : IDL.Func([IDL.Principal], [IDL.Opt(UserProfile)], ['query']),
     'getVideoById' : IDL.Func([IDL.Nat], [IDL.Opt(Video)], ['query']),
-    'getWatchProgress' : IDL.Func(
-        [IDL.Nat],
-        [IDL.Opt(WatchProgress)],
-        ['query'],
-      ),
+    'getWatchProgress' : IDL.Func([IDL.Nat], [IDL.Opt(WatchProgress)], ['query']),
     'isAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'listAllVideos' : IDL.Func([], [IDL.Vec(Video)], ['query']),
@@ -205,6 +233,14 @@ export const idlFactory = ({ IDL }) => {
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'submitPremiumRequest' : IDL.Func([PremiumPlan, IDL.Text], [IDL.Nat], []),
     'verifyPremiumRequest' : IDL.Func([IDL.Nat, IDL.Bool], [IDL.Bool], []),
+    'getPaymentSettings' : IDL.Func([], [PaymentSettings], ['query']),
+    'updatePaymentSettings' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'activateAdminWithCode' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    'getAllUserProfiles' : IDL.Func([], [IDL.Vec(UserRecord)], ['query']),
+    'addVideo' : IDL.Func([IDL.Text, IDL.Text, IDL.Text, IDL.Text, Genre, IDL.Nat, IDL.Bool], [IDL.Nat], []),
+    'deleteVideo' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'submitHelpDeskRequest' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+    'listHelpDeskRequests' : IDL.Func([], [IDL.Vec(HelpDeskRequest)], ['query']),
   });
 };
 

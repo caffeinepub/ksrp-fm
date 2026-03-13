@@ -21,6 +21,7 @@ import {
   Crown,
   Film,
   HelpCircle,
+  Home,
   Menu,
   Phone,
   Shield,
@@ -96,18 +97,21 @@ export default function Navbar() {
     setHelpDeskOpen(true);
   };
 
-  const handleHelpDeskSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleHelpDeskSubmit = async () => {
+    const name = hdName.trim();
+    const phoneNumber = hdPhone.trim();
+    const problem = hdProblem.trim();
+    if (!name || !phoneNumber || !problem) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
     try {
-      await submitHelpDesk({
-        name: hdName.trim(),
-        phoneNumber: hdPhone.trim(),
-        problem: hdProblem.trim(),
-      });
+      await submitHelpDesk({ name, phoneNumber, problem });
       setHdSuccess(true);
       toast.success("Help request submitted! We'll get back to you soon.");
-    } catch {
-      toast.error("Failed to submit request. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to submit: ${msg}`);
     }
   };
 
@@ -126,6 +130,14 @@ export default function Navbar() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
+            <Link
+              to="/"
+              data-ocid="nav.home_link"
+              className="px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5"
+            >
+              <Home className="w-3.5 h-3.5" />
+              Home
+            </Link>
             {/* Admin Power Mode - always visible for non-admins */}
             {!isAdmin && (
               <button
@@ -269,6 +281,15 @@ export default function Navbar() {
               className="md:hidden overflow-hidden border-t border-border"
             >
               <nav className="flex flex-col px-4 py-3 gap-1">
+                <Link
+                  to="/"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5"
+                  data-ocid="nav.mobile_home_link"
+                >
+                  <Home className="w-3 h-3" />
+                  Home
+                </Link>
                 {isLoggedIn && (
                   <>
                     <Link
@@ -505,10 +526,7 @@ export default function Navbar() {
               </Button>
             </div>
           ) : (
-            <form
-              onSubmit={handleHelpDeskSubmit}
-              className="flex flex-col gap-4 pt-2"
-            >
+            <div className="flex flex-col gap-4 pt-2">
               <div className="space-y-1.5">
                 <Label className="text-sm text-muted-foreground">Name *</Label>
                 <Input
@@ -558,7 +576,8 @@ export default function Navbar() {
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={handleHelpDeskSubmit}
                   disabled={isSubmittingHd}
                   className="flex-1 bg-crimson hover:bg-crimson/90 text-white"
                   data-ocid="helpdesk.submit_button"
@@ -566,7 +585,7 @@ export default function Navbar() {
                   {isSubmittingHd ? "Submitting..." : "Submit Request"}
                 </Button>
               </div>
-            </form>
+            </div>
           )}
         </DialogContent>
       </Dialog>
