@@ -3,6 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -15,19 +22,26 @@ import {
   CheckCircle,
   Clock,
   CreditCard,
+  Film,
   Loader2,
+  Plus,
   QrCode,
   Save,
   Shield,
+  Trash2,
+  Users,
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PremiumPlan } from "../backend.d";
+import { Genre, PremiumPlan } from "../backend.d";
 import { useAuth } from "../context/AuthContext";
-import { useActor } from "../hooks/useActor";
 import {
+  useAddVideo,
+  useAllUserProfiles,
+  useDeleteVideo,
+  useListAllVideos,
   usePaymentSettings,
   usePendingPremiumRequests,
   useUpdatePaymentSettings,
@@ -42,9 +56,22 @@ export default function AdminPage() {
     usePaymentSettings();
   const { mutateAsync: updateSettings, isPending: isSavingSettings } =
     useUpdatePaymentSettings();
+  const { data: allUsers, isLoading: isLoadingUsers } = useAllUserProfiles();
+  const { data: allVideos, isLoading: isLoadingVideos } = useListAllVideos();
+  const { mutateAsync: addVideo, isPending: isAddingVideo } = useAddVideo();
+  const { mutateAsync: deleteVideo, isPending: isDeletingVideo } =
+    useDeleteVideo();
 
   const [upiId, setUpiId] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
+
+  // Video form state
+  const [videoTitle, setVideoTitle] = useState("");
+  const [videoDescription, setVideoDescription] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [videoGenre, setVideoGenre] = useState<Genre>(Genre.Romance);
+  const [isPremiumOnly, setIsPremiumOnly] = useState(false);
 
   useEffect(() => {
     if (paymentSettings) {
@@ -93,6 +120,39 @@ export default function AdminPage() {
     }
   };
 
+  const handleAddVideo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await addVideo({
+        title: videoTitle.trim(),
+        description: videoDescription.trim(),
+        videoUrl: videoUrl.trim(),
+        thumbnailUrl: thumbnailUrl.trim(),
+        genre: videoGenre,
+        durationSeconds: BigInt(0),
+        isPremiumOnly,
+      });
+      toast.success("Video added successfully!");
+      setVideoTitle("");
+      setVideoDescription("");
+      setVideoUrl("");
+      setThumbnailUrl("");
+      setVideoGenre(Genre.Romance);
+      setIsPremiumOnly(false);
+    } catch {
+      toast.error("Failed to add video.");
+    }
+  };
+
+  const handleDeleteVideo = async (videoId: bigint) => {
+    try {
+      await deleteVideo(videoId);
+      toast.success("Video deleted.");
+    } catch {
+      toast.error("Failed to delete video.");
+    }
+  };
+
   return (
     <main className="min-h-screen pb-16">
       <div className="max-w-5xl mx-auto px-4 py-10">
@@ -108,12 +168,20 @@ export default function AdminPage() {
             <h1 className="font-display font-bold text-2xl">Admin Panel</h1>
           </div>
           <p className="text-muted-foreground text-sm">
-            Manage premium payment requests and payment settings.
+            Manage users, videos, premium payment requests and payment settings.
           </p>
         </motion.div>
 
-        <Tabs defaultValue="requests">
-          <TabsList className="mb-6 bg-secondary">
+        <Tabs defaultValue="users">
+          <TabsList className="mb-6 bg-secondary flex-wrap h-auto gap-1">
+            <TabsTrigger
+              value="users"
+              className="data-[state=active]:bg-crimson data-[state=active]:text-white"
+              data-ocid="admin.users_tab"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              All Users
+            </TabsTrigger>
             <TabsTrigger
               value="requests"
               className="data-[state=active]:bg-crimson data-[state=active]:text-white"
@@ -121,6 +189,14 @@ export default function AdminPage() {
             >
               <Clock className="w-4 h-4 mr-2" />
               Payment Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="videos"
+              className="data-[state=active]:bg-crimson data-[state=active]:text-white"
+              data-ocid="admin.videos_tab"
+            >
+              <Film className="w-4 h-4 mr-2" />
+              Videos
             </TabsTrigger>
             <TabsTrigger
               value="settings"
@@ -131,6 +207,97 @@ export default function AdminPage() {
               Payment Settings
             </TabsTrigger>
           </TabsList>
+
+          {/* ALL USERS TAB */}
+          <TabsContent value="users">
+            {isLoadingUsers ? (
+              <div
+                className="flex items-center justify-center py-20"
+                data-ocid="admin.users_loading_state"
+              >
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !allUsers || allUsers.length === 0 ? (
+              <div
+                className="text-center py-20"
+                data-ocid="admin.users_empty_state"
+              >
+                <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <h3 className="font-display font-semibold text-lg mb-1">
+                  No Users Yet
+                </h3>
+                <p className="text-muted-foreground text-sm">
+                  No one has registered yet.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    {allUsers.length} registered user
+                    {allUsers.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <Table data-ocid="admin.users_table">
+                  <TableHeader>
+                    <TableRow className="border-border">
+                      <TableHead className="text-muted-foreground">#</TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Name
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Mobile Number
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Premium
+                      </TableHead>
+                      <TableHead className="text-muted-foreground">
+                        Premium Expiry
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allUsers.map((user, i) => (
+                      <TableRow
+                        key={user.principal.toString()}
+                        className="border-border"
+                        data-ocid={`admin.users_row.${i + 1}`}
+                      >
+                        <TableCell className="text-muted-foreground text-sm">
+                          {i + 1}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {user.firstName} {user.lastName}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {user.mobileNumber}
+                        </TableCell>
+                        <TableCell>
+                          {user.isPremium ? (
+                            <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-xs">
+                              Premium
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-secondary text-muted-foreground border border-border text-xs">
+                              Free
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {user.premiumExpiresAt
+                            ? new Date(
+                                Number(user.premiumExpiresAt) / 1_000_000,
+                              ).toLocaleDateString("en-IN")
+                            : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
 
           {/* PENDING REQUESTS TAB */}
           <TabsContent value="requests">
@@ -244,6 +411,228 @@ export default function AdminPage() {
                 </Table>
               </div>
             )}
+          </TabsContent>
+
+          {/* VIDEOS TAB */}
+          <TabsContent value="videos">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Add Video Form */}
+              <div className="bg-card border border-border rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-9 h-9 rounded-lg bg-crimson/10 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-crimson" />
+                  </div>
+                  <div>
+                    <h3 className="font-display font-semibold text-base">
+                      Add New Video
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Paste a hosted video URL (YouTube, Google Drive, Vimeo).
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleAddVideo} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-muted-foreground">
+                      Title *
+                    </Label>
+                    <Input
+                      placeholder="e.g. Midnight Chase"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      required
+                      data-ocid="admin.video_title_input"
+                      className="bg-secondary border-border focus:border-crimson"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-muted-foreground">
+                      Description
+                    </Label>
+                    <Input
+                      placeholder="Short description of the video"
+                      value={videoDescription}
+                      onChange={(e) => setVideoDescription(e.target.value)}
+                      data-ocid="admin.video_desc_input"
+                      className="bg-secondary border-border focus:border-crimson"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-muted-foreground">
+                      Video URL *
+                    </Label>
+                    <Input
+                      placeholder="https://youtube.com/watch?v=..."
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      required
+                      data-ocid="admin.video_url_input"
+                      className="bg-secondary border-border focus:border-crimson"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      YouTube, Google Drive, or Vimeo link.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-muted-foreground">
+                      Thumbnail URL
+                    </Label>
+                    <Input
+                      placeholder="https://imgbb.com/your-thumbnail.jpg"
+                      value={thumbnailUrl}
+                      onChange={(e) => setThumbnailUrl(e.target.value)}
+                      data-ocid="admin.video_thumbnail_input"
+                      className="bg-secondary border-border focus:border-crimson"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use imgbb.com or postimages.org to host your thumbnail.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-muted-foreground">
+                      Genre *
+                    </Label>
+                    <Select
+                      value={videoGenre}
+                      onValueChange={(v) => setVideoGenre(v as Genre)}
+                    >
+                      <SelectTrigger
+                        className="bg-secondary border-border"
+                        data-ocid="admin.video_genre_select"
+                      >
+                        <SelectValue placeholder="Select genre" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value={Genre.Romance}>Romance</SelectItem>
+                        <SelectItem value={Genre.Thriller}>Thriller</SelectItem>
+                        <SelectItem value={Genre.Action}>Action</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="isPremiumOnly"
+                      checked={isPremiumOnly}
+                      onChange={(e) => setIsPremiumOnly(e.target.checked)}
+                      data-ocid="admin.video_premium_checkbox"
+                      className="w-4 h-4 accent-crimson"
+                    />
+                    <Label
+                      htmlFor="isPremiumOnly"
+                      className="text-sm text-muted-foreground cursor-pointer"
+                    >
+                      Premium only video
+                    </Label>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isAddingVideo}
+                    className="bg-crimson hover:bg-crimson/90 text-white w-full"
+                    data-ocid="admin.add_video_button"
+                  >
+                    {isAddingVideo ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    {isAddingVideo ? "Adding..." : "Add Video"}
+                  </Button>
+                </form>
+              </div>
+
+              {/* Video List */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Film className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground font-medium">
+                    {allVideos
+                      ? `${allVideos.length} video${allVideos.length !== 1 ? "s" : ""}`
+                      : "Loading..."}
+                  </span>
+                </div>
+
+                {isLoadingVideos ? (
+                  <div
+                    className="flex items-center justify-center py-16"
+                    data-ocid="admin.videos_loading_state"
+                  >
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : !allVideos || allVideos.length === 0 ? (
+                  <div
+                    className="text-center py-16 bg-card border border-border rounded-xl"
+                    data-ocid="admin.videos_empty_state"
+                  >
+                    <Film className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="font-display font-semibold text-base mb-1">
+                      No Videos Yet
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      Add your first video using the form.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                    {allVideos.map((video, i) => (
+                      <div
+                        key={video.id.toString()}
+                        className="bg-card border border-border rounded-lg p-3 flex items-start gap-3"
+                        data-ocid={`admin.video_item.${i + 1}`}
+                      >
+                        {video.thumbnailUrl ? (
+                          <img
+                            src={video.thumbnailUrl}
+                            alt={video.title}
+                            className="w-16 h-10 object-cover rounded flex-shrink-0"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-16 h-10 bg-secondary rounded flex items-center justify-center flex-shrink-0">
+                            <Film className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {video.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge className="bg-secondary text-muted-foreground border border-border text-xs px-1.5 py-0">
+                              {video.genre}
+                            </Badge>
+                            {video.isPremiumOnly && (
+                              <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 text-xs px-1.5 py-0">
+                                Premium
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isDeletingVideo}
+                          onClick={() => handleDeleteVideo(video.id)}
+                          className="border-crimson/40 text-crimson hover:bg-crimson/10 h-7 w-7 p-0 flex-shrink-0"
+                          data-ocid={`admin.video_delete_button.${i + 1}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
 
           {/* PAYMENT SETTINGS TAB */}

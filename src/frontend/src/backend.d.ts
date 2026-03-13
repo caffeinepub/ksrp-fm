@@ -50,6 +50,14 @@ export interface UserProfile {
     lastName: string;
     firstName: string;
 }
+export interface UserRecord {
+    principal: Principal;
+    firstName: string;
+    lastName: string;
+    mobileNumber: string;
+    isPremium: boolean;
+    premiumExpiresAt?: Time;
+}
 export interface PaymentSettings {
     upiId: string;
     qrCodeUrl: string;
@@ -83,6 +91,7 @@ export interface backendInterface {
     getPremiumRequests(): Promise<Array<PremiumRequest>>;
     getUser(mobileNumber: string): Promise<User | null>;
     getUserPremiumStatus(): Promise<[boolean, Time | null]>;
+    getUserPremiumPlan(): Promise<string | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getVideoById(id: bigint): Promise<Video | null>;
     getWatchProgress(videoId: bigint): Promise<WatchProgress | null>;
@@ -98,4 +107,8 @@ export interface backendInterface {
     verifyPremiumRequest(requestId: bigint, approve: boolean): Promise<boolean>;
     getPaymentSettings(): Promise<PaymentSettings>;
     updatePaymentSettings(upiId: string, qrCodeUrl: string): Promise<boolean>;
+    activateAdminWithCode(code: string): Promise<boolean>;
+    getAllUserProfiles(): Promise<Array<UserRecord>>;
+    addVideo(title: string, description: string, videoUrl: string, thumbnailUrl: string, genre: Genre, durationSeconds: bigint, isPremiumOnly: boolean): Promise<bigint>;
+    deleteVideo(videoId: bigint): Promise<boolean>;
 }

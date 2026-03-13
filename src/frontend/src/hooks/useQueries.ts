@@ -153,3 +153,67 @@ export function useUpdatePaymentSettings() {
     },
   });
 }
+
+export function useAllUserProfiles() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["allUserProfiles"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllUserProfiles();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddVideo() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      title,
+      description,
+      videoUrl,
+      thumbnailUrl,
+      genre,
+      durationSeconds,
+      isPremiumOnly,
+    }: {
+      title: string;
+      description: string;
+      videoUrl: string;
+      thumbnailUrl: string;
+      genre: import("../backend.d").Genre;
+      durationSeconds: bigint;
+      isPremiumOnly: boolean;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addVideo(
+        title,
+        description,
+        videoUrl,
+        thumbnailUrl,
+        genre,
+        durationSeconds,
+        isPremiumOnly,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["videos"] });
+    },
+  });
+}
+
+export function useDeleteVideo() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (videoId: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteVideo(videoId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["videos"] });
+    },
+  });
+}

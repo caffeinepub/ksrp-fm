@@ -12,6 +12,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   isPremium: boolean;
   premiumExpiresAt: bigint | null;
+  premiumPlan: string | null;
   userProfile: UserProfile | null;
   isAdmin: boolean;
   isLoading: boolean;
@@ -24,6 +25,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   isPremium: false,
   premiumExpiresAt: null,
+  premiumPlan: null,
   userProfile: null,
   isAdmin: false,
   isLoading: true,
@@ -37,54 +39,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [premiumExpiresAt, setPremiumExpiresAt] = useState<bigint | null>(null);
+  const [premiumPlan, setPremiumPlan] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAuthState = useCallback(async () => {
-    if (!actor || isFetching) return;
+    if (!actor) return;
+    // Always check local admin flag first, regardless of login status
+    const localAdmin = localStorage.getItem("ksrp_admin") === "true";
     const loggedIn = localStorage.getItem("ksrp_logged_in") === "true";
+
     if (!loggedIn) {
+      setIsAdmin(localAdmin);
       setIsLoading(false);
       return;
     }
+
     try {
-      const [profile, premiumStatus, adminStatus] = await Promise.all([
+      const [profile, premiumStatus, adminStatus, plan] = await Promise.all([
         actor.getCallerUserProfile(),
         actor.getUserPremiumStatus(),
         actor.isAdmin(),
+        actor.getUserPremiumPlan(),
       ]);
       if (profile) {
         setIsLoggedIn(true);
         setUserProfile(profile);
         setIsPremium(premiumStatus[0]);
         setPremiumExpiresAt(premiumStatus[1] ?? null);
-        setIsAdmin(adminStatus);
+        setPremiumPlan(plan ?? null);
+        setIsAdmin(adminStatus || localAdmin);
       } else {
         localStorage.removeItem("ksrp_logged_in");
+        setIsLoggedIn(false);
+        setIsAdmin(localAdmin);
       }
     } catch {
       localStorage.removeItem("ksrp_logged_in");
+      setIsLoggedIn(false);
+      setIsAdmin(localAdmin);
     } finally {
       setIsLoading(false);
     }
-  }, [actor, isFetching]);
+  }, [actor]);
 
   useEffect(() => {
-    loadAuthState();
-  }, [loadAuthState]);
+    if (!isFetching) {
+      loadAuthState();
+    }
+  }, [loadAuthState, isFetching]);
 
   const login = async (_mobile: string) => {
     localStorage.setItem("ksrp_logged_in", "true");
+    setIsLoggedIn(true);
     await loadAuthState();
   };
 
   const logout = () => {
     localStorage.removeItem("ksrp_logged_in");
+    localStorage.removeItem("ksrp_admin");
     setIsLoggedIn(false);
     setUserProfile(null);
     setIsPremium(false);
     setPremiumExpiresAt(null);
+    setPremiumPlan(null);
     setIsAdmin(false);
   };
 
@@ -94,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggedIn,
         isPremium,
         premiumExpiresAt,
+        premiumPlan,
         userProfile,
         isAdmin,
         isLoading,

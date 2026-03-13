@@ -6,7 +6,6 @@ import Array "mo:core/Array";
 import Time "mo:core/Time";
 import Text "mo:core/Text";
 import Iter "mo:core/Iter";
-import List "mo:core/List";
 import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
 
@@ -14,13 +13,9 @@ import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
 actor {
-  ///////////////////////////////////////////////////////////
-  // DATA TYPES & MODULES
-  ///////////////////////////////////////////////////////////
-
   type Hash = Text;
 
-  // User Data
+  // Stable types kept exactly as before — no new fields to preserve upgrade compatibility
   type User = {
     firstName : Text;
     lastName : Text;
@@ -30,7 +25,6 @@ actor {
     premiumExpiresAt : ?Time.Time;
   };
 
-  // User Profile (for AccessControl system)
   public type UserProfile = {
     firstName : Text;
     lastName : Text;
@@ -39,7 +33,15 @@ actor {
     premiumExpiresAt : ?Time.Time;
   };
 
-  // Video Data
+  public type UserRecord = {
+    principal : Principal;
+    firstName : Text;
+    lastName : Text;
+    mobileNumber : Text;
+    isPremium : Bool;
+    premiumExpiresAt : ?Time.Time;
+  };
+
   type Genre = {
     #Romance;
     #Thriller;
@@ -72,7 +74,6 @@ actor {
     isPremiumOnly : Bool;
   };
 
-  // Watch Progress
   type WatchProgress = {
     videoId : Nat;
     watchedSeconds : Nat;
@@ -80,7 +81,6 @@ actor {
     lastWatchedAt : Time.Time;
   };
 
-  // Premium Subscription
   type PremiumPlan = {
     #Monthly;
     #Yearly;
@@ -102,7 +102,6 @@ actor {
     reviewedAt : ?Time.Time;
   };
 
-  // Payment Settings
   public type PaymentSettings = {
     upiId : Text;
     qrCodeUrl : Text;
@@ -120,18 +119,13 @@ actor {
     };
 
     public func compareByLastWatched(wp1 : WatchProgress, wp2 : WatchProgress) : Order.Order {
-      Int.compare(wp2.lastWatchedAt, wp1.lastWatchedAt); // Descending order
+      Int.compare(wp2.lastWatchedAt, wp1.lastWatchedAt);
     };
   };
 
-  ///////////////////////////////////////////////////////////
-  // STATE
-  ///////////////////////////////////////////////////////////
-  // Authorization
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // Data Stores
   let users = Map.empty<Principal, User>();
   let userProfiles = Map.empty<Principal, UserProfile>();
   let mobileNumberToPrincipal = Map.empty<Text, Principal>();
@@ -139,92 +133,25 @@ actor {
   let premiumRequests = Map.empty<Nat, PremiumRequest>();
   let watchProgress = Map.empty<Principal, Map.Map<Nat, WatchProgress>>();
 
+  // New separate stable map for premium plan — avoids breaking User/UserProfile stable types
+  let userPremiumPlan = Map.empty<Principal, Text>();
+
   var nextVideoId = 1;
   var nextPremiumRequestId = 1;
 
-  // Payment Settings
   var paymentUpiId : Text = "ksrpfm@upi";
   var paymentQrCodeUrl : Text = "";
 
-  ///////////////////////////////////////////////////////////
-  // VIDEO INIT (Hardcoded for demonstration)
-  ///////////////////////////////////////////////////////////
   let sampleVideos = [
-    // Romance videos
-    {
-      title = "Sunset Love";
-      description = "A romantic tale set against the backdrop of a beautiful sunset.";
-      thumbnailUrl = "https://example.com/thumbnails/sunset_love.jpg";
-      videoUrl = "https://example.com/videos/sunset_love.mp4";
-      genre = #Romance : Genre;
-      durationSeconds = 5400;
-    },
-    {
-      title = "Heartbeats";
-      description = "A story about finding love in unexpected places.";
-      thumbnailUrl = "https://example.com/thumbnails/heartbeats.jpg";
-      videoUrl = "https://example.com/videos/heartbeats.mp4";
-      genre = #Romance : Genre;
-      durationSeconds = 6200;
-    },
-    {
-      title = "Love's Journey";
-      description = "Two souls embark on a journey of love and discovery.";
-      thumbnailUrl = "https://example.com/thumbnails/loves_journey.jpg";
-      videoUrl = "https://example.com/videos/loves_journey.mp4";
-      genre = #Romance : Genre;
-      durationSeconds = 7200;
-    },
-    // Thriller videos
-    {
-      title = "Midnight Chase";
-      description = "A high-stakes thriller that will keep you on the edge of your seat.";
-      thumbnailUrl = "https://example.com/thumbnails/midnight_chase.jpg";
-      videoUrl = "https://example.com/videos/midnight_chase.mp4";
-      genre = #Thriller : Genre;
-      durationSeconds = 5400;
-    },
-    {
-      title = "Dark Secrets";
-      description = "Unravel the mystery behind hidden secrets.";
-      thumbnailUrl = "https://example.com/thumbnails/dark_secrets.jpg";
-      videoUrl = "https://example.com/videos/dark_secrets.mp4";
-      genre = #Thriller : Genre;
-      durationSeconds = 6200;
-    },
-    {
-      title = "Chasing Shadows";
-      description = "A detective's quest to catch a notorious criminal.";
-      thumbnailUrl = "https://example.com/thumbnails/chasing_shadows.jpg";
-      videoUrl = "https://example.com/videos/chasing_shadows.mp4";
-      genre = #Thriller : Genre;
-      durationSeconds = 7200;
-    },
-    // Action videos
-    {
-      title = "Fast Lane";
-      description = "Adrenaline-pumping action in a high-speed race.";
-      thumbnailUrl = "https://example.com/thumbnails/fast_lane.jpg";
-      videoUrl = "https://example.com/videos/fast_lane.mp4";
-      genre = #Action : Genre;
-      durationSeconds = 5400;
-    },
-    {
-      title = "Warrior's Path";
-      description = "Follow the journey of a skilled warrior in battle.";
-      thumbnailUrl = "https://example.com/thumbnails/warriors_path.jpg";
-      videoUrl = "https://example.com/videos/warriors_path.mp4";
-      genre = #Action : Genre;
-      durationSeconds = 6200;
-    },
-    {
-      title = "Battlefield";
-      description = "Epic action scenes in a war-torn battlefield.";
-      thumbnailUrl = "https://example.com/thumbnails/battlefield.jpg";
-      videoUrl = "https://example.com/videos/battlefield.mp4";
-      genre = #Action : Genre;
-      durationSeconds = 7200;
-    },
+    { title = "Sunset Love"; description = "A romantic tale set against the backdrop of a beautiful sunset."; thumbnailUrl = "https://example.com/thumbnails/sunset_love.jpg"; videoUrl = "https://example.com/videos/sunset_love.mp4"; genre = #Romance : Genre; durationSeconds = 5400; },
+    { title = "Heartbeats"; description = "A story about finding love in unexpected places."; thumbnailUrl = "https://example.com/thumbnails/heartbeats.jpg"; videoUrl = "https://example.com/videos/heartbeats.mp4"; genre = #Romance : Genre; durationSeconds = 6200; },
+    { title = "Love's Journey"; description = "Two souls embark on a journey of love and discovery."; thumbnailUrl = "https://example.com/thumbnails/loves_journey.jpg"; videoUrl = "https://example.com/videos/loves_journey.mp4"; genre = #Romance : Genre; durationSeconds = 7200; },
+    { title = "Midnight Chase"; description = "A high-stakes thriller that will keep you on the edge of your seat."; thumbnailUrl = "https://example.com/thumbnails/midnight_chase.jpg"; videoUrl = "https://example.com/videos/midnight_chase.mp4"; genre = #Thriller : Genre; durationSeconds = 5400; },
+    { title = "Dark Secrets"; description = "Unravel the mystery behind hidden secrets."; thumbnailUrl = "https://example.com/thumbnails/dark_secrets.jpg"; videoUrl = "https://example.com/videos/dark_secrets.mp4"; genre = #Thriller : Genre; durationSeconds = 6200; },
+    { title = "Chasing Shadows"; description = "A detective's quest to catch a notorious criminal."; thumbnailUrl = "https://example.com/thumbnails/chasing_shadows.jpg"; videoUrl = "https://example.com/videos/chasing_shadows.mp4"; genre = #Thriller : Genre; durationSeconds = 7200; },
+    { title = "Fast Lane"; description = "Adrenaline-pumping action in a high-speed race."; thumbnailUrl = "https://example.com/thumbnails/fast_lane.jpg"; videoUrl = "https://example.com/videos/fast_lane.mp4"; genre = #Action : Genre; durationSeconds = 5400; },
+    { title = "Warrior's Path"; description = "Follow the journey of a skilled warrior in battle."; thumbnailUrl = "https://example.com/thumbnails/warriors_path.jpg"; videoUrl = "https://example.com/videos/warriors_path.mp4"; genre = #Action : Genre; durationSeconds = 6200; },
+    { title = "Battlefield"; description = "Epic action scenes in a war-torn battlefield."; thumbnailUrl = "https://example.com/thumbnails/battlefield.jpg"; videoUrl = "https://example.com/videos/battlefield.mp4"; genre = #Action : Genre; durationSeconds = 7200; },
   ];
 
   for (video in sampleVideos.values()) {
@@ -243,14 +170,26 @@ actor {
     nextVideoId += 1;
   };
 
-  ///////////////////////////////////////////////////////////
-  // USER PROFILE APIS (Required by AccessControl)
-  ///////////////////////////////////////////////////////////
+  // Helper: check if a user's premium is currently active (not expired)
+  func isUserPremiumActive(user : User) : Bool {
+    if (not user.isPremium) { return false };
+    switch (user.premiumExpiresAt) {
+      case (null) { false };
+      case (?expiresAt) { Time.now() < expiresAt };
+    };
+  };
+
+  // Safe helper: check if caller has a role without trapping
+  func callerHasRole(caller : Principal) : Bool {
+    if (caller.isAnonymous()) { return false };
+    switch (accessControlState.userRoles.get(caller)) {
+      case (null) { false };
+      case (?_) { true };
+    };
+  };
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
-    };
+    if (not callerHasRole(caller)) { return null };
     userProfiles.get(caller);
   };
 
@@ -268,9 +207,21 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  ///////////////////////////////////////////////////////////
-  // AUTH SYSTEM
-  ///////////////////////////////////////////////////////////
+  // Returns the caller's active premium plan label ("Monthly" or "Yearly"), or null
+  public query ({ caller }) func getUserPremiumPlan() : async ?Text {
+    if (not callerHasRole(caller)) { return null };
+    // Only return plan if premium is still active
+    switch (users.get(caller)) {
+      case (null) { null };
+      case (?user) {
+        if (isUserPremiumActive(user)) {
+          userPremiumPlan.get(caller);
+        } else {
+          null;
+        };
+      };
+    };
+  };
 
   public shared ({ caller }) func register(firstName : Text, lastName : Text, mobileNumber : Text, passwordHash : Hash) : async Bool {
     if (mobileNumberToPrincipal.containsKey(mobileNumber)) {
@@ -289,7 +240,6 @@ actor {
     users.add(caller, newUser);
     mobileNumberToPrincipal.add(mobileNumber, caller);
 
-    // Create user profile
     let profile : UserProfile = {
       firstName;
       lastName;
@@ -298,6 +248,11 @@ actor {
       premiumExpiresAt = null;
     };
     userProfiles.add(caller, profile);
+
+    switch (accessControlState.userRoles.get(caller)) {
+      case (null) { accessControlState.userRoles.add(caller, #user) };
+      case (?_) {};
+    };
 
     true;
   };
@@ -324,7 +279,6 @@ actor {
 
     switch (mobileNumberToPrincipal.get(mobileNumber)) {
       case (?principal) {
-        // Users can only view their own data, admins can view any
         if (caller != principal and not AccessControl.isAdmin(accessControlState, caller)) {
           Runtime.trap("Unauthorized: Can only view your own user data");
         };
@@ -334,28 +288,17 @@ actor {
     };
   };
 
-  ///////////////////////////////////////////////////////////
-  // VIDEO CATALOG APIS
-  ///////////////////////////////////////////////////////////
-
   public query ({ caller }) func listAllVideos() : async [Video] {
-    // Public access - anyone can list videos (including guests)
     videos.values().toArray().sort();
   };
 
   public query ({ caller }) func listVideosByGenre(genre : Genre) : async [Video] {
-    // Public access - anyone can list videos by genre (including guests)
     videos.values().toArray().filter(func(video) { video.genre == genre });
   };
 
   public query ({ caller }) func getVideoById(id : Nat) : async ?Video {
-    // Public access - anyone can get video details (including guests)
     videos.get(id);
   };
-
-  ///////////////////////////////////////////////////////////
-  // WATCH PROGRESS APIS
-  ///////////////////////////////////////////////////////////
 
   public shared ({ caller }) func recordProgress(videoId : Nat, watchedSeconds : Nat) : async Bool {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -370,8 +313,8 @@ actor {
           case (?video) { video };
         };
 
-        // Check if user has access to premium content
-        if (video.isPremiumOnly and not user.isPremium) {
+        // Check actual premium expiry, not just the stored boolean
+        if (video.isPremiumOnly and not isUserPremiumActive(user)) {
           Runtime.trap("Premium subscription required to watch this video");
         };
 
@@ -419,10 +362,6 @@ actor {
     };
   };
 
-  ///////////////////////////////////////////////////////////
-  // PREMIUM SUBSCRIPTION APIS
-  ///////////////////////////////////////////////////////////
-
   public shared ({ caller }) func submitPremiumRequest(plan : PremiumPlan, utrId : Text) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can submit premium requests");
@@ -433,7 +372,7 @@ actor {
       case (?_) {
         let request : PremiumRequest = {
           id = nextPremiumRequestId;
-          userId = caller;
+          userId = caller; // Premium tied to this specific user Principal only
           plan;
           utrId;
           status = #Pending;
@@ -478,28 +417,37 @@ actor {
         premiumRequests.add(requestId, updatedRequest);
 
         if (approve) {
-          let premiumDuration = switch (request.plan) {
-            case (#Monthly) { 30 * 24 * 60 * 60 };
-            case (#Yearly) { 365 * 24 * 60 * 60 };
+          // Duration in nanoseconds: 30 days for Monthly, 365 days for Yearly
+          let premiumDurationNanos : Int = switch (request.plan) {
+            case (#Monthly) { 30 * 24 * 60 * 60 * 1_000_000_000 };
+            case (#Yearly)  { 365 * 24 * 60 * 60 * 1_000_000_000 };
+          };
+          let planLabel : Text = switch (request.plan) {
+            case (#Monthly) { "Monthly" };
+            case (#Yearly)  { "Yearly" };
           };
 
+          // Apply premium ONLY to the specific userId that submitted this request
           switch (users.get(request.userId)) {
             case (null) { () };
             case (?user) {
+              let expiresAt = Time.now() + premiumDurationNanos;
               let updatedUser = {
                 user with
                 isPremium = true;
-                premiumExpiresAt = ?(Time.now() + premiumDuration * 1_000_000_000); // nanoseconds
+                premiumExpiresAt = ?expiresAt;
               };
               users.add(request.userId, updatedUser);
 
-              // Update user profile
+              // Store the plan label separately
+              userPremiumPlan.add(request.userId, planLabel);
+
               switch (userProfiles.get(request.userId)) {
                 case (?profile) {
                   let updatedProfile = {
                     profile with
                     isPremium = true;
-                    premiumExpiresAt = ?(Time.now() + premiumDuration * 1_000_000_000);
+                    premiumExpiresAt = ?expiresAt;
                   };
                   userProfiles.add(request.userId, updatedProfile);
                 };
@@ -514,26 +462,32 @@ actor {
     };
   };
 
+  // Returns actual active premium status with expiry check
   public query ({ caller }) func getUserPremiumStatus() : async (Bool, ?Time.Time) {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only authenticated users can view premium status");
-    };
-
+    if (not callerHasRole(caller)) { return (false, null) };
     switch (users.get(caller)) {
-      case (null) { Runtime.trap("User not found") };
+      case (null) { (false, null) };
       case (?user) {
-        (user.isPremium, user.premiumExpiresAt);
+        let active = isUserPremiumActive(user);
+        (active, user.premiumExpiresAt);
       };
     };
   };
 
   public query ({ caller }) func isAdmin() : async Bool {
-    AccessControl.isAdmin(accessControlState, caller);
+    if (caller.isAnonymous()) { return false };
+    switch (accessControlState.userRoles.get(caller)) {
+      case (?#admin) { true };
+      case (_) { false };
+    };
   };
 
-  ///////////////////////////////////////////////////////////
-  // PAYMENT SETTINGS APIS
-  ///////////////////////////////////////////////////////////
+  public shared ({ caller }) func activateAdminWithCode(code : Text) : async Bool {
+    if (caller.isAnonymous()) { return false };
+    if (code != "1000") { return false };
+    accessControlState.userRoles.add(caller, #admin);
+    true;
+  };
 
   public query func getPaymentSettings() : async PaymentSettings {
     { upiId = paymentUpiId; qrCodeUrl = paymentQrCodeUrl };
@@ -546,5 +500,66 @@ actor {
     paymentUpiId := upiId;
     paymentQrCodeUrl := qrCodeUrl;
     true;
+  };
+
+  // Admin: add a new video
+  public shared ({ caller }) func addVideo(title : Text, description : Text, videoUrl : Text, thumbnailUrl : Text, genre : Genre, durationSeconds : Nat, isPremiumOnly : Bool) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add videos");
+    };
+    let videoData : Video = {
+      id = nextVideoId;
+      title = title;
+      description = description;
+      thumbnailUrl = thumbnailUrl;
+      videoUrl = videoUrl;
+      genre = genre;
+      durationSeconds = durationSeconds;
+      createdAt = Time.now();
+      isPremiumOnly = isPremiumOnly;
+    };
+    videos.add(nextVideoId, videoData);
+    let newId = nextVideoId;
+    nextVideoId += 1;
+    newId;
+  };
+
+  // Admin: delete a video
+  public shared ({ caller }) func deleteVideo(videoId : Nat) : async Bool {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete videos");
+    };
+    switch (videos.get(videoId)) {
+      case (null) { false };
+      case (?_) {
+        videos.remove(videoId);
+        true;
+      };
+    };
+  };
+
+  // Admin: get all registered users with their details
+  public query ({ caller }) func getAllUserProfiles() : async [UserRecord] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view all users");
+    };
+    userProfiles.entries().toArray().map(func((p, profile) : (Principal, UserProfile)) : UserRecord {
+      let isPremiumActive = switch (users.get(p)) {
+        case (null) { false };
+        case (?user) { isUserPremiumActive(user) };
+      };
+      let expiresAt = switch (users.get(p)) {
+        case (null) { null };
+        case (?user) { user.premiumExpiresAt };
+      };
+      {
+        principal = p;
+        firstName = profile.firstName;
+        lastName = profile.lastName;
+        mobileNumber = profile.mobileNumber;
+        isPremium = isPremiumActive;
+        premiumExpiresAt = expiresAt;
+      };
+    });
   };
 };

@@ -155,6 +155,14 @@ export interface PaymentSettings {
     upiId: string;
     qrCodeUrl: string;
 }
+export interface UserRecord {
+    principal: Principal;
+    firstName: string;
+    lastName: string;
+    mobileNumber: string;
+    isPremium: boolean;
+    premiumExpiresAt?: Time;
+}
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
@@ -165,6 +173,7 @@ export interface backendInterface {
     getPremiumRequests(): Promise<Array<PremiumRequest>>;
     getUser(mobileNumber: string): Promise<User | null>;
     getUserPremiumStatus(): Promise<[boolean, Time | null]>;
+    getUserPremiumPlan(): Promise<string | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     getVideoById(id: bigint): Promise<Video | null>;
     getWatchProgress(videoId: bigint): Promise<WatchProgress | null>;
@@ -180,6 +189,10 @@ export interface backendInterface {
     verifyPremiumRequest(requestId: bigint, approve: boolean): Promise<boolean>;
     getPaymentSettings(): Promise<PaymentSettings>;
     updatePaymentSettings(upiId: string, qrCodeUrl: string): Promise<boolean>;
+    activateAdminWithCode(code: string): Promise<boolean>;
+    getAllUserProfiles(): Promise<Array<UserRecord>>;
+    addVideo(title: string, description: string, videoUrl: string, thumbnailUrl: string, genre: Genre, durationSeconds: bigint, isPremiumOnly: boolean): Promise<bigint>;
+    deleteVideo(videoId: bigint): Promise<boolean>;
 }
 import type { Genre as _Genre, Hash as _Hash, PremiumPlan as _PremiumPlan, PremiumRequest as _PremiumRequest, PremiumRequestStatus as _PremiumRequestStatus, Time as _Time, User as _User, UserProfile as _UserProfile, UserRole as _UserRole, Video as _Video, WatchProgress as _WatchProgress } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -314,6 +327,14 @@ export class Backend implements backendInterface {
                 result[0],
                 from_candid_opt_n6(this._uploadFile, this._downloadFile, result[1])
             ];
+        }
+    }
+    async getUserPremiumPlan(): Promise<string | null> {
+        try {
+            const result = await (this.actor as any).getUserPremiumPlan();
+            return Array.isArray(result) ? (result[0] ?? null) : (result ?? null);
+        } catch {
+            return null;
         }
     }
     async getUserProfile(arg0: Principal): Promise<UserProfile | null> {
@@ -505,6 +526,29 @@ export class Backend implements backendInterface {
     async updatePaymentSettings(arg0: string, arg1: string): Promise<boolean> {
         const result = await (this.actor as any).updatePaymentSettings(arg0, arg1);
         return result;
+    }
+    async activateAdminWithCode(arg0: string): Promise<boolean> {
+        const result = await (this.actor as any).activateAdminWithCode(arg0);
+        return result;
+    }
+    async addVideo(title: string, description: string, videoUrl: string, thumbnailUrl: string, genre: Genre, durationSeconds: bigint, isPremiumOnly: boolean): Promise<bigint> {
+        const result = await (this.actor as any).addVideo(title, description, videoUrl, thumbnailUrl, to_candid_Genre_n26(this._uploadFile, this._downloadFile, genre), durationSeconds, isPremiumOnly);
+        return BigInt(result);
+    }
+    async deleteVideo(videoId: bigint): Promise<boolean> {
+        const result = await (this.actor as any).deleteVideo(videoId);
+        return result;
+    }
+    async getAllUserProfiles(): Promise<Array<UserRecord>> {
+        const result = await (this.actor as any).getAllUserProfiles();
+        return result.map((r: any) => ({
+            principal: r.principal,
+            firstName: r.firstName,
+            lastName: r.lastName,
+            mobileNumber: r.mobileNumber,
+            isPremium: r.isPremium,
+            premiumExpiresAt: r.premiumExpiresAt?.length ? r.premiumExpiresAt[0] : undefined,
+        }));
     }
 }
 function from_candid_Genre_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Genre): Genre {

@@ -222,7 +222,7 @@ export default function AuthPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full font-semibold mt-2 bg-white hover:bg-gray-100 text-black border border-gray-300"
+                  className="w-full font-semibold mt-2 bg-crimson hover:bg-crimson/90 text-white"
                   data-ocid="auth.submit_button"
                 >
                   {loading ? (
@@ -313,7 +313,7 @@ export default function AuthPage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full font-semibold mt-2 bg-white hover:bg-gray-100 text-black border border-gray-300"
+                  className="w-full font-semibold mt-2 bg-crimson hover:bg-crimson/90 text-white"
                   data-ocid="auth.reg_submit_button"
                 >
                   {loading ? (

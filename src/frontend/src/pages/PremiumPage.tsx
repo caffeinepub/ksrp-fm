@@ -35,7 +35,7 @@ const BENEFITS = [
 ];
 
 export default function PremiumPage() {
-  const { isPremium, premiumExpiresAt, refreshAuth } = useAuth();
+  const { isPremium, premiumExpiresAt, premiumPlan, refreshAuth } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<PremiumPlan | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [utrId, setUtrId] = useState("");
@@ -111,13 +111,20 @@ export default function PremiumPage() {
                 <Crown className="w-6 h-6 text-yellow-400" />
               </div>
               <div>
-                <h3 className="font-display font-bold text-lg text-yellow-300">
-                  Premium Active
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display font-bold text-lg text-yellow-300">
+                    Premium Active
+                  </h3>
+                  {premiumPlan && (
+                    <Badge className="bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 text-xs">
+                      {premiumPlan} Plan
+                    </Badge>
+                  )}
+                </div>
                 {premiumExpiry && (
                   <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
                     <Calendar className="w-3.5 h-3.5" />
-                    Expires {premiumExpiry}
+                    Valid until {premiumExpiry}
                   </p>
                 )}
               </div>
@@ -153,12 +160,15 @@ export default function PremiumPage() {
             }`}
           >
             <h3 className="font-display font-bold text-xl mb-1">Monthly</h3>
-            <div className="flex items-end gap-1 mb-4">
+            <div className="flex items-end gap-1 mb-1">
               <span className="font-display font-bold text-4xl text-crimson">
                 ₹100
               </span>
               <span className="text-muted-foreground mb-1">/month</span>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Access for exactly 1 month from activation
+            </p>
             <ul className="space-y-2">
               {BENEFITS.map((b) => (
                 <li
@@ -204,7 +214,7 @@ export default function PremiumPage() {
               <span className="text-muted-foreground mb-1">/year</span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Just ₹83/month — save 17%
+              Access for exactly 1 year from activation -- save 17%
             </p>
             <ul className="space-y-2">
               {BENEFITS.map((b) => (
@@ -225,7 +235,7 @@ export default function PremiumPage() {
           </motion.div>
         </div>
 
-        {/* CTA — always visible, disabled until a plan is selected */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -275,8 +285,10 @@ export default function PremiumPage() {
                   Payment Received!
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  Your payment is being verified. Premium will be activated
-                  within 24 hours.
+                  Your{" "}
+                  {selectedPlan === PremiumPlan.Monthly ? "Monthly" : "Yearly"}{" "}
+                  plan payment is being verified. Premium will be activated on
+                  your account within 24 hours.
                 </p>
                 <Button
                   className="mt-6 bg-crimson hover:bg-crimson/90 text-white"
@@ -289,10 +301,15 @@ export default function PremiumPage() {
             ) : (
               <div className="space-y-5">
                 <div className="bg-secondary rounded-xl p-4 text-center">
-                  <p className="text-sm font-semibold mb-3">
+                  <p className="text-sm font-semibold mb-1">
                     Pay{" "}
                     {selectedPlan === PremiumPlan.Monthly ? "₹100" : "₹1000"}{" "}
                     via UPI
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {selectedPlan === PremiumPlan.Monthly
+                      ? "Monthly plan — 30 days access from activation"
+                      : "Yearly plan — 365 days access from activation"}
                   </p>
                   <div className="flex justify-center">
                     <div className="w-52 h-52 rounded-lg border border-border bg-white flex flex-col items-center justify-center gap-2 overflow-hidden">
@@ -345,7 +362,7 @@ export default function PremiumPage() {
                     {isPending ? (
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     ) : null}
-                    {isPending ? "Verifying..." : "Verify & Activate"}
+                    {isPending ? "Submitting..." : "Submit Payment"}
                   </Button>
                 </form>
               </div>
