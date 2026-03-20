@@ -54,6 +54,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const localAdmin = localStorage.getItem("ksrp_admin") === "true";
     const loggedIn = localStorage.getItem("ksrp_logged_in") === "true";
 
+    // Always sync admin role to backend if localStorage flag is set
+    // This ensures backend role survives page reloads and deployments
+    if (localAdmin) {
+      try {
+        await actor.activateAdminWithCode("1000");
+      } catch {
+        // best-effort
+      }
+    }
+
     if (!loggedIn) {
       setIsLoggedIn(false);
       setIsAdmin(localAdmin);

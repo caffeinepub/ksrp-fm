@@ -15,7 +15,6 @@ import AccessControl "authorization/access-control";
 actor {
   type Hash = Text;
 
-  // Stable types kept exactly as before — no new fields to preserve upgrade compatibility
   type User = {
     firstName : Text;
     lastName : Text;
@@ -141,7 +140,6 @@ actor {
   let premiumRequests = Map.empty<Nat, PremiumRequest>();
   let watchProgress = Map.empty<Principal, Map.Map<Nat, WatchProgress>>();
 
-  // New separate stable map for premium plan — avoids breaking User/UserProfile stable types
   let userPremiumPlan = Map.empty<Principal, Text>();
 
   var nextVideoId = 1;
@@ -153,6 +151,8 @@ actor {
   let helpDeskRequests = Map.empty<Nat, HelpDeskRequest>();
   var nextHelpDeskId = 1;
 
+  // Kept for upgrade compatibility — previously seeded fake videos.
+  // Do NOT loop over this; real videos are added via the admin panel.
   let sampleVideos = [
     { title = "Sunset Love"; description = "A romantic tale set against the backdrop of a beautiful sunset."; thumbnailUrl = "https://example.com/thumbnails/sunset_love.jpg"; videoUrl = "https://example.com/videos/sunset_love.mp4"; genre = #Romance : Genre; durationSeconds = 5400; },
     { title = "Heartbeats"; description = "A story about finding love in unexpected places."; thumbnailUrl = "https://example.com/thumbnails/heartbeats.jpg"; videoUrl = "https://example.com/videos/heartbeats.mp4"; genre = #Romance : Genre; durationSeconds = 6200; },
@@ -165,20 +165,20 @@ actor {
     { title = "Battlefield"; description = "Epic action scenes in a war-torn battlefield."; thumbnailUrl = "https://example.com/thumbnails/battlefield.jpg"; videoUrl = "https://example.com/videos/battlefield.mp4"; genre = #Action : Genre; durationSeconds = 7200; },
   ];
 
-  for (video in sampleVideos.values()) {
-    let videoData : Video = {
-      id = nextVideoId;
-      title = video.title;
-      description = video.description;
-      thumbnailUrl = video.thumbnailUrl;
-      videoUrl = video.videoUrl;
-      genre = video.genre;
-      durationSeconds = video.durationSeconds;
-      createdAt = Time.now();
-      isPremiumOnly = true;
-    };
-    videos.add(nextVideoId, videoData);
-    nextVideoId += 1;
+  // Seed the real video — only added if videos map is empty (fresh deploy)
+  if (videos.size() == 0) {
+    videos.add(1, {
+      id = 1;
+      title = "THE RETURN OF TIGER";
+      description = "S1 S1 ABHINAV IS TIGER";
+      thumbnailUrl = "";
+      videoUrl = "https://youtu.be/rLLfRsdFu9E?si=_XFrH19ZTMAnxCft";
+      genre = #Action;
+      durationSeconds = 0;
+      createdAt = 0;
+      isPremiumOnly = false;
+    });
+    nextVideoId := 2;
   };
 
   // Helper: check if a user's premium is currently active (not expired)
@@ -218,10 +218,8 @@ actor {
     userProfiles.add(caller, profile);
   };
 
-  // Returns the caller's active premium plan label ("Monthly" or "Yearly"), or null
   public query ({ caller }) func getUserPremiumPlan() : async ?Text {
     if (not callerHasRole(caller)) { return null };
-    // Only return plan if premium is still active
     switch (users.get(caller)) {
       case (null) { null };
       case (?user) {
@@ -324,7 +322,6 @@ actor {
           case (?video) { video };
         };
 
-        // Check actual premium expiry, not just the stored boolean
         if (video.isPremiumOnly and not isUserPremiumActive(user)) {
           Runtime.trap("Premium subscription required to watch this video");
         };
@@ -383,7 +380,7 @@ actor {
       case (?_) {
         let request : PremiumRequest = {
           id = nextPremiumRequestId;
-          userId = caller; // Premium tied to this specific user Principal only
+          userId = caller;
           plan;
           utrId;
           status = #Pending;
@@ -428,7 +425,6 @@ actor {
         premiumRequests.add(requestId, updatedRequest);
 
         if (approve) {
-          // Duration in nanoseconds: 30 days for Monthly, 365 days for Yearly
           let premiumDurationNanos : Int = switch (request.plan) {
             case (#Monthly) { 30 * 24 * 60 * 60 * 1_000_000_000 };
             case (#Yearly)  { 365 * 24 * 60 * 60 * 1_000_000_000 };
@@ -438,7 +434,6 @@ actor {
             case (#Yearly)  { "Yearly" };
           };
 
-          // Apply premium ONLY to the specific userId that submitted this request
           switch (users.get(request.userId)) {
             case (null) { () };
             case (?user) {
@@ -449,8 +444,6 @@ actor {
                 premiumExpiresAt = ?expiresAt;
               };
               users.add(request.userId, updatedUser);
-
-              // Store the plan label separately
               userPremiumPlan.add(request.userId, planLabel);
 
               switch (userProfiles.get(request.userId)) {
@@ -473,7 +466,6 @@ actor {
     };
   };
 
-  // Returns actual active premium status with expiry check
   public query ({ caller }) func getUserPremiumStatus() : async (Bool, ?Time.Time) {
     if (not callerHasRole(caller)) { return (false, null) };
     switch (users.get(caller)) {
@@ -493,8 +485,8 @@ actor {
     };
   };
 
+  // Admin code activation — works without login (anonymous callers allowed)
   public shared ({ caller }) func activateAdminWithCode(code : Text) : async Bool {
-    if (caller.isAnonymous()) { return false };
     if (code != "1000") { return false };
     accessControlState.userRoles.add(caller, #admin);
     true;
@@ -549,7 +541,6 @@ actor {
     };
   };
 
-
   // Admin: delete all videos
   public shared ({ caller }) func deleteAllVideos() : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
@@ -561,6 +552,7 @@ actor {
     };
     count;
   };
+
   // Admin: get all registered users with their details
   public query ({ caller }) func getAllUserProfiles() : async [UserRecord] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {

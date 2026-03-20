@@ -18,6 +18,32 @@ const GENRE_COLORS: Record<string, string> = {
   Action: "bg-blue-500/20 text-blue-300 border-blue-500/30",
 };
 
+function getYouTubeEmbedUrl(url: string): string | null {
+  try {
+    // Handle youtu.be short links
+    const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+    if (shortMatch) {
+      return `https://www.youtube.com/embed/${shortMatch[1]}?autoplay=1&rel=0`;
+    }
+    // Handle youtube.com/watch?v=
+    const longMatch = url.match(/[?&]v=([^&]+)/);
+    if (longMatch) {
+      return `https://www.youtube.com/embed/${longMatch[1]}?autoplay=1&rel=0`;
+    }
+    // Handle youtube.com/embed/ already
+    if (url.includes("youtube.com/embed/")) {
+      return url;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function isYouTubeUrl(url: string): boolean {
+  return url.includes("youtube.com") || url.includes("youtu.be");
+}
+
 export default function VideoPage() {
   const { id } = useParams({ from: "/layout/video/$id" });
   const videoId = BigInt(id);
@@ -82,6 +108,10 @@ export default function VideoPage() {
   }
 
   const isLocked = video.isPremiumOnly && !isPremium;
+  const videoUrl = video.videoUrl || "";
+  const youtubeEmbed = isYouTubeUrl(videoUrl)
+    ? getYouTubeEmbedUrl(videoUrl)
+    : null;
 
   return (
     <main className="min-h-screen pb-16">
@@ -119,13 +149,19 @@ export default function VideoPage() {
                 </Link>
               </div>
             </div>
+          ) : youtubeEmbed ? (
+            <iframe
+              src={youtubeEmbed}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title={video.title}
+            />
           ) : (
             // biome-ignore lint/a11y/useMediaCaption: short films without captions available
             <video
               ref={videoRef}
-              src={
-                video.videoUrl || "https://www.w3schools.com/html/mov_bbb.mp4"
-              }
+              src={videoUrl || "https://www.w3schools.com/html/mov_bbb.mp4"}
               controls
               className="w-full h-full"
               poster={`https://picsum.photos/seed/${video.id}/800/450`}
