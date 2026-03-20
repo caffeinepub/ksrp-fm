@@ -549,6 +549,18 @@ actor {
     };
   };
 
+
+  // Admin: delete all videos
+  public shared ({ caller }) func deleteAllVideos() : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can delete videos");
+    };
+    let count = videos.size();
+    for (id in videos.keys()) {
+      videos.remove(id);
+    };
+    count;
+  };
   // Admin: get all registered users with their details
   public query ({ caller }) func getAllUserProfiles() : async [UserRecord] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {

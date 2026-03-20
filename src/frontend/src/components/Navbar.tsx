@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
+import { useActor } from "../hooks/useActor";
 import { useSubmitHelpDeskRequest } from "../hooks/useQueries";
 
 export default function Navbar() {
@@ -57,6 +58,7 @@ export default function Navbar() {
   const [hdProblem, setHdProblem] = useState("");
   const [hdSuccess, setHdSuccess] = useState(false);
 
+  const { actor } = useActor();
   const { mutateAsync: submitHelpDesk, isPending: isSubmittingHd } =
     useSubmitHelpDeskRequest();
 
@@ -72,6 +74,14 @@ export default function Navbar() {
     setAdminCodeLoading(true);
     try {
       if (adminCode === "1000") {
+        // Activate admin role on the backend using the persistent local identity
+        if (actor) {
+          try {
+            await actor.activateAdminWithCode("1000");
+          } catch {
+            // best-effort; fallback to localStorage only
+          }
+        }
         localStorage.setItem("ksrp_admin", "true");
         await refreshAuth();
         setAdminSuccess(true);
